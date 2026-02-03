@@ -20,7 +20,7 @@ pub fn config_dir() -> Option<PathBuf> {
         env::var("XDG_CONFIG_HOME")
             .ok()
             .map(PathBuf::from)
-            .or_else(|| std::env::home_dir())
+            .or_else(std::env::home_dir)
             .map(|mut base| {
                 base.push(CONFIG_DIR);
                 base
@@ -28,7 +28,7 @@ pub fn config_dir() -> Option<PathBuf> {
     } else if cfg!(target_os = "macos") {
         // macOS: Use $HOME/Library/Application Support
         //  or $HOME/.config if favor-xdg-style is enabled
-        std::env::home_dir().map(PathBuf::from).map(|mut home| {
+        std::env::home_dir().map(|mut home| {
             if cfg!(feature = "favor-xdg-style") {
                 home.push(CONFIG_DIR);
                 return home;
