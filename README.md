@@ -1,5 +1,9 @@
 # dirs-lite
 
+[![crates.io](https://img.shields.io/crates/v/dirs-lite.svg)](https://crates.io/crates/dirs-lite)
+[![docs.rs](https://docs.rs/dirs-lite/badge.svg)](https://docs.rs/dirs-lite)
+[![License](https://img.shields.io/crates/l/dirs-lite.svg)](https://github.com/sassman/dirs-lite-rs#license)
+
 A minimal, dependency-free crate for getting the user's config, data, and cache directories.
 
 ## Usage
@@ -74,3 +78,7 @@ Need more? Consider these crates:
 - [`dirs`](https://crates.io/crates/dirs) - More directory types (cache, data, etc.)
 - [`directories`](https://crates.io/crates/directories) - Project-specific paths with organization support
 - [`etcetera`](https://crates.io/crates/etcetera) - Strategy-based (XDG, Apple, Windows)
+
+## License
+
+Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or [MIT license](LICENSE-MIT) at your option.
