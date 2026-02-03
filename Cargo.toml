@@ -1,11 +1,11 @@
 [package]
-name = "config-dir-lite"
+name = "dirs-lite"
 version = "1.0.0"
 edition = "2024"
 authors = ["Sven Kanoldt <sven@d34dl0ck.me>"]
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/sassman/config-dir-lite-rs"
-description = "Get platform-specific config directories, can favor XDG-style on MacOS, no dependencies."
+repository = "https://github.com/sassman/dirs-lite-rs"
+description = "Get platform-specific config, data, and cache directories. Supports XDG-style on macOS. No dependencies."
 
 [dependencies]
 

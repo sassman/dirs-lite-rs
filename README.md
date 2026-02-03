@@ -1,23 +1,39 @@
-# config-dir-lite
+# dirs-lite
 
-A minimal, dependency-free crate for getting the user's config directory.
+A minimal, dependency-free crate for getting the user's config, data, and cache directories.
 
 ## Usage
 
 ```rust
-use config_dir_lite::config_dir;
+use dirs_lite::{config_dir, data_dir, cache_dir};
 
 fn main() {
-    let path = config_dir().expect("config dir");
-    println!("{}", path.display());
+    let config = config_dir().expect("config dir");
+    println!("{}", config.display());
     // Linux:   /home/alice/.config
     // macOS:   /Users/Alice/Library/Application Support
     //          /Users/Alice/.config (with `favor-xdg-style` feature)
     // Windows: C:\Users\Alice\AppData\Roaming
+
+    let data = data_dir().expect("data dir");
+    println!("{}", data.display());
+    // Linux:   /home/alice/.local/share
+    // macOS:   /Users/Alice/Library/Application Support
+    //          /Users/Alice/.local/share (with `favor-xdg-style` feature)
+    // Windows: C:\Users\Alice\AppData\Local
+
+    let cache = cache_dir().expect("cache dir");
+    println!("{}", cache.display());
+    // Linux:   /home/alice/.cache
+    // macOS:   /Users/Alice/Library/Caches
+    //          /Users/Alice/.cache (with `favor-xdg-style` feature)
+    // Windows: C:\Users\Alice\AppData\Local
 }
 ```
 
 ## Platform Behavior
+
+### `config_dir()`
 
 | Platform | Path |
 |----------|------|
@@ -25,9 +41,25 @@ fn main() {
 | macOS | `$HOME/Library/Application Support` |
 | Windows | `%APPDATA%` |
 
+### `data_dir()`
+
+| Platform | Path |
+|----------|------|
+| Linux | `$XDG_DATA_HOME` or `$HOME/.local/share` |
+| macOS | `$HOME/Library/Application Support` |
+| Windows | `%LOCALAPPDATA%` |
+
+### `cache_dir()`
+
+| Platform | Path |
+|----------|------|
+| Linux | `$XDG_CACHE_HOME` or `$HOME/.cache` |
+| macOS | `$HOME/Library/Caches` |
+| Windows | `%LOCALAPPDATA%` |
+
 ## Features
 
-- **`favor-xdg-style`** - On macOS, returns `$HOME/.config` instead of `$HOME/Library/Application Support`.
+- **`favor-xdg-style`** - On macOS, returns XDG-style paths (`$HOME/.config`, `$HOME/.local/share`, `$HOME/.cache`) instead of Apple paths.
 
 ## Platform Conventions
 
