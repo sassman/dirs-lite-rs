@@ -19,8 +19,8 @@ const CACHE_DIR: &str = ".cache";
 pub fn config_dir() -> Option<PathBuf> {
     if cfg!(target_os = "linux") {
         // Linux: Use $HOME/.config
-        env::var("XDG_CONFIG_HOME")
-            .ok()
+        env::var_os("XDG_CONFIG_HOME")
+            .filter(|s| !s.is_empty())
             .map(PathBuf::from)
             .or_else(std::env::home_dir)
             .map(|mut base| {
@@ -41,7 +41,7 @@ pub fn config_dir() -> Option<PathBuf> {
         })
     } else if cfg!(target_os = "windows") {
         // Windows: Use %APPDATA%
-        env::var("APPDATA").ok().map(PathBuf::from)
+        env::var_os("APPDATA").filter(|s| !s.is_empty()).map(PathBuf::from)
     } else {
         // Unsupported platform
         None
@@ -62,8 +62,8 @@ pub fn config_dir() -> Option<PathBuf> {
 pub fn data_dir() -> Option<PathBuf> {
     if cfg!(target_os = "linux") {
         // Linux: Use $XDG_DATA_HOME or $HOME/.local/share
-        env::var("XDG_DATA_HOME")
-            .ok()
+        env::var_os("XDG_DATA_HOME")
+            .filter(|s| !s.is_empty())
             .map(PathBuf::from)
             .or_else(|| {
                 std::env::home_dir().map(|mut home| {
@@ -85,7 +85,7 @@ pub fn data_dir() -> Option<PathBuf> {
         })
     } else if cfg!(target_os = "windows") {
         // Windows: Use %LOCALAPPDATA%
-        env::var("LOCALAPPDATA").ok().map(PathBuf::from)
+        env::var_os("LOCALAPPDATA").filter(|s| !s.is_empty()).map(PathBuf::from)
     } else {
         // Unsupported platform
         None
@@ -106,8 +106,8 @@ pub fn data_dir() -> Option<PathBuf> {
 pub fn cache_dir() -> Option<PathBuf> {
     if cfg!(target_os = "linux") {
         // Linux: Use $XDG_CACHE_HOME or $HOME/.cache
-        env::var("XDG_CACHE_HOME")
-            .ok()
+        env::var_os("XDG_CACHE_HOME")
+            .filter(|s| !s.is_empty())
             .map(PathBuf::from)
             .or_else(|| {
                 std::env::home_dir().map(|mut home| {
@@ -129,7 +129,7 @@ pub fn cache_dir() -> Option<PathBuf> {
         })
     } else if cfg!(target_os = "windows") {
         // Windows: Use %LOCALAPPDATA%
-        env::var("LOCALAPPDATA").ok().map(PathBuf::from)
+        env::var_os("LOCALAPPDATA").filter(|s| !s.is_empty()).map(PathBuf::from)
     } else {
         // Unsupported platform
         None
@@ -447,5 +447,183 @@ mod tests {
                 "cache_dir should return an absolute path"
             );
         }
+    }
+
+    #[cfg(unix)]
+    fn restore_var_os(key: &str, original: Option<std::ffi::OsString>) {
+        // SAFETY: Tests run single-threaded with --test-threads=1
+        unsafe {
+            match original {
+                Some(val) => env::set_var(key, val),
+                None => env::remove_var(key),
+            }
+        }
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn linux_config_dir_handles_non_utf8_xdg() {
+        use std::ffi::OsStr;
+        use std::os::unix::ffi::OsStrExt;
+
+        let original = env::var_os("XDG_CONFIG_HOME");
+        let non_utf8 = OsStr::from_bytes(b"/tmp/\xff\xfe");
+        // SAFETY: Tests run single-threaded with --test-threads=1
+        unsafe { env::set_var("XDG_CONFIG_HOME", non_utf8) };
+
+        let result = config_dir();
+        let mut expected = PathBuf::from(non_utf8);
+        expected.push(".config");
+        assert_eq!(result, Some(expected));
+
+        restore_var_os("XDG_CONFIG_HOME", original);
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn linux_data_dir_handles_non_utf8_xdg() {
+        use std::ffi::OsStr;
+        use std::os::unix::ffi::OsStrExt;
+
+        let original = env::var_os("XDG_DATA_HOME");
+        let non_utf8 = OsStr::from_bytes(b"/tmp/\xff\xfe/data");
+        // SAFETY: Tests run single-threaded with --test-threads=1
+        unsafe { env::set_var("XDG_DATA_HOME", non_utf8) };
+
+        let result = data_dir();
+        assert_eq!(result, Some(PathBuf::from(non_utf8)));
+
+        restore_var_os("XDG_DATA_HOME", original);
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn linux_cache_dir_handles_non_utf8_xdg() {
+        use std::ffi::OsStr;
+        use std::os::unix::ffi::OsStrExt;
+
+        let original = env::var_os("XDG_CACHE_HOME");
+        let non_utf8 = OsStr::from_bytes(b"/tmp/\xff\xfe/cache");
+        // SAFETY: Tests run single-threaded with --test-threads=1
+        unsafe { env::set_var("XDG_CACHE_HOME", non_utf8) };
+
+        let result = cache_dir();
+        assert_eq!(result, Some(PathBuf::from(non_utf8)));
+
+        restore_var_os("XDG_CACHE_HOME", original);
+    }
+
+    #[test]
+    #[cfg(all(target_os = "macos", not(feature = "favor-xdg-style")))]
+    fn macos_config_dir_handles_non_utf8_home() {
+        use std::ffi::OsStr;
+        use std::os::unix::ffi::OsStrExt;
+
+        let original = env::var_os("HOME");
+        let non_utf8_home = OsStr::from_bytes(b"/Users/\xff\xfe");
+        // SAFETY: Tests run single-threaded with --test-threads=1
+        unsafe { env::set_var("HOME", non_utf8_home) };
+
+        let result = config_dir();
+        let mut expected = PathBuf::from(non_utf8_home);
+        expected.push("Library");
+        expected.push("Application Support");
+        assert_eq!(result, Some(expected));
+
+        restore_var_os("HOME", original);
+    }
+
+    #[test]
+    #[cfg(all(target_os = "macos", not(feature = "favor-xdg-style")))]
+    fn macos_data_dir_handles_non_utf8_home() {
+        use std::ffi::OsStr;
+        use std::os::unix::ffi::OsStrExt;
+
+        let original = env::var_os("HOME");
+        let non_utf8_home = OsStr::from_bytes(b"/Users/\xff\xfe");
+        // SAFETY: Tests run single-threaded with --test-threads=1
+        unsafe { env::set_var("HOME", non_utf8_home) };
+
+        let result = data_dir();
+        let mut expected = PathBuf::from(non_utf8_home);
+        expected.push("Library");
+        expected.push("Application Support");
+        assert_eq!(result, Some(expected));
+
+        restore_var_os("HOME", original);
+    }
+
+    #[test]
+    #[cfg(all(target_os = "macos", not(feature = "favor-xdg-style")))]
+    fn macos_cache_dir_handles_non_utf8_home() {
+        use std::ffi::OsStr;
+        use std::os::unix::ffi::OsStrExt;
+
+        let original = env::var_os("HOME");
+        let non_utf8_home = OsStr::from_bytes(b"/Users/\xff\xfe");
+        // SAFETY: Tests run single-threaded with --test-threads=1
+        unsafe { env::set_var("HOME", non_utf8_home) };
+
+        let result = cache_dir();
+        let mut expected = PathBuf::from(non_utf8_home);
+        expected.push("Library");
+        expected.push("Caches");
+        assert_eq!(result, Some(expected));
+
+        restore_var_os("HOME", original);
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn linux_config_dir_ignores_empty_xdg() {
+        let original_xdg = env::var("XDG_CONFIG_HOME").ok();
+        let original_home = env::var("HOME").ok();
+        // SAFETY: Tests run single-threaded with --test-threads=1
+        unsafe {
+            set_var("XDG_CONFIG_HOME", "");
+            set_var("HOME", "/home/testuser");
+        }
+
+        let result = config_dir();
+        assert_eq!(result, Some(PathBuf::from("/home/testuser/.config")));
+
+        restore_var("XDG_CONFIG_HOME", original_xdg);
+        restore_var("HOME", original_home);
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn linux_data_dir_ignores_empty_xdg() {
+        let original_xdg = env::var("XDG_DATA_HOME").ok();
+        let original_home = env::var("HOME").ok();
+        // SAFETY: Tests run single-threaded with --test-threads=1
+        unsafe {
+            set_var("XDG_DATA_HOME", "");
+            set_var("HOME", "/home/testuser");
+        }
+
+        let result = data_dir();
+        assert_eq!(result, Some(PathBuf::from("/home/testuser/.local/share")));
+
+        restore_var("XDG_DATA_HOME", original_xdg);
+        restore_var("HOME", original_home);
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn linux_cache_dir_ignores_empty_xdg() {
+        let original_xdg = env::var("XDG_CACHE_HOME").ok();
+        let original_home = env::var("HOME").ok();
+        // SAFETY: Tests run single-threaded with --test-threads=1
+        unsafe {
+            set_var("XDG_CACHE_HOME", "");
+            set_var("HOME", "/home/testuser");
+        }
+
+        let result = cache_dir();
+        assert_eq!(result, Some(PathBuf::from("/home/testuser/.cache")));
+
+        restore_var("XDG_CACHE_HOME", original_xdg);
+        restore_var("HOME", original_home);
     }
 }
