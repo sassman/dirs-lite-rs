@@ -22,10 +22,11 @@ pub fn config_dir() -> Option<PathBuf> {
         env::var_os("XDG_CONFIG_HOME")
             .filter(|s| !s.is_empty())
             .map(PathBuf::from)
-            .or_else(std::env::home_dir)
-            .map(|mut base| {
-                base.push(CONFIG_DIR);
-                base
+            .or_else(|| {
+                std::env::home_dir().map(|mut base| {
+                    base.push(CONFIG_DIR);
+                    base
+                })
             })
     } else if cfg!(target_os = "macos") {
         // macOS: Use $HOME/Library/Application Support
@@ -189,10 +190,10 @@ mod tests {
     fn linux_uses_xdg_config_home_when_set() {
         let original = env::var("XDG_CONFIG_HOME").ok();
         // SAFETY: Tests run single-threaded with --test-threads=1
-        unsafe { set_var("XDG_CONFIG_HOME", "/custom/config") };
+        unsafe { set_var("XDG_CONFIG_HOME", "/custom/.config") };
 
         let result = config_dir();
-        assert_eq!(result, Some(PathBuf::from("/custom/config/.config")));
+        assert_eq!(result, Some(PathBuf::from("/custom/.config")));
 
         restore_var("XDG_CONFIG_HOME", original);
     }
@@ -478,8 +479,7 @@ mod tests {
         unsafe { env::set_var("XDG_CONFIG_HOME", non_utf8) };
 
         let result = config_dir();
-        let mut expected = PathBuf::from(non_utf8);
-        expected.push(".config");
+        let expected = PathBuf::from(non_utf8);
         assert_eq!(result, Some(expected));
 
         restore_var_os("XDG_CONFIG_HOME", original);
