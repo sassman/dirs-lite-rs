@@ -479,7 +479,7 @@ mod tests {
         unsafe { env::set_var("XDG_CONFIG_HOME", non_utf8) };
 
         let result = config_dir();
-        let mut expected = PathBuf::from(non_utf8);
+        let expected = PathBuf::from(non_utf8);
         assert_eq!(result, Some(expected));
 
         restore_var_os("XDG_CONFIG_HOME", original);
